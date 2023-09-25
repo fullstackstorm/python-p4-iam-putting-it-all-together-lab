@@ -7,6 +7,11 @@ from sqlalchemy.exc import IntegrityError
 from config import app, db, api
 from models import User, Recipe
 
+@app.before_request
+def check_if_logged_in(self):
+    if not session['user_id']:
+        return {'error': 'Unauthorized'}, 401
+
 class Signup(Resource):
     def post(self):
         json = request.get_json()
@@ -40,13 +45,34 @@ class CheckSession(Resource):
         return make_response({}, 401)
 
 class Login(Resource):
-    pass
+    def post(self):
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
 
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.authenticate(password):
+            session['user_id'] = user.id
+            return make_response(user.to_dict(), 200)
+        
+        return make_response({}, 401)
+    
 class Logout(Resource):
-    pass
+    def delete(self):
+        if session['user_id']:
+            session['user_id'] = None
+            return make_response({}, 204)
+        else:
+            return make_response({}, 401)
 
 class RecipeIndex(Resource):
-    pass
+    def get(self):
+        user_id = session.get('user_id')
+        recipes = Recipe.query.filter(User.id == user_id).all()
+        recipes_dict = [recipe.to_dict() for recipe in recipes]
+        return make_response(recipes_dict, 200)
+
 
 api.add_resource(Signup, '/signup', endpoint='signup')
 api.add_resource(CheckSession, '/check_session', endpoint='check_session')
