@@ -46,14 +46,19 @@ with app.app_context():
     recipes = []
     for i in range(100):
         instructions = fake.paragraph(nb_sentences=8)
-        
+
+        title = f"Recipe {i + 1}"
+
+        minutes_to_complete = randint(15, 90)
+        user = rc(users)
+
         recipe = Recipe(
-            title=fake.sentence(),
+            title=title,
             instructions=instructions,
-            minutes_to_complete=randint(15,90),
+            minutes_to_complete=minutes_to_complete,
         )
 
-        recipe.user = rc(users)
+        recipe.user = user
 
         recipes.append(recipe)
 
