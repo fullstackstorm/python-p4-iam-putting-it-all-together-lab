@@ -8,9 +8,9 @@ from config import app, db, api
 from models import User, Recipe
 
 @app.before_request
-def check_if_logged_in(self):
-    if not session['user_id']:
-        return {'error': 'Unauthorized'}, 401
+def check_if_logged_in():
+    if not session.get('user_id') and request.endpoint == 'recipes' :
+        return make_response({'error': 'Unauthorized'}, 401)
 
 class Signup(Resource):
     def post(self):
