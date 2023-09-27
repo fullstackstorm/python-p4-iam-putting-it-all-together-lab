@@ -7,10 +7,10 @@ from sqlalchemy.exc import IntegrityError
 from config import app, db, api
 from models import User, Recipe
 
-@app.before_request
-def check_if_logged_in():
-    if not session.get('user_id') and request.endpoint == 'recipes' :
-        return make_response({'error': 'Unauthorized'}, 401)
+# @app.before_request
+# def check_if_logged_in():
+#     if not session.get('user_id') and request.endpoint == 'recipes' :
+#         return make_response({'error': 'Unauthorized'}, 401)
 
 class Signup(Resource):
     def post(self):
@@ -69,9 +69,49 @@ class Logout(Resource):
 class RecipeIndex(Resource):
     def get(self):
         user_id = session.get('user_id')
-        recipes = Recipe.query.filter(User.id == user_id).all()
-        recipes_dict = [recipe.to_dict() for recipe in recipes]
-        return make_response(recipes_dict, 200)
+        if user_id:
+            # If the user is logged in, retrieve and return their recipes
+            recipes = Recipe.query.filter(Recipe.user_id == user_id).all()
+            recipes_data = [recipe.to_dict() for recipe in recipes]
+            return make_response(recipes_data, 200)
+        else:
+            # If the user is not logged in, return an unauthorized error
+            return make_response({'error': 'Unauthorized'}, 401)
+
+    def post(self):
+        user_id = session.get('user_id')
+        if user_id:
+            # If the user is logged in, try to create a new recipe
+            json = request.get_json()
+            title = json.get('title')
+            instructions = json.get('instructions')
+            minutes_to_complete = json.get('minutes_to_complete')
+            
+            if not title or not instructions or not minutes_to_complete:
+                # Check if required data is missing
+                return make_response({'message': 'Title, instructions, and minutes_to_complete are required'}, 422)
+            
+            # Create a new recipe and associate it with the logged-in user
+            recipe = Recipe(
+                title=title,
+                instructions=instructions,
+                minutes_to_complete=minutes_to_complete,
+                user_id=user_id
+            )
+            
+            try:
+                db.session.add(recipe)
+                db.session.commit()
+                return make_response(recipe.to_dict(), 201)
+            except IntegrityError as e:
+                db.session.rollback()
+                return make_response({'message': 'Invalid input'}, 422)
+            except Exception as e:
+                db.session.rollback()
+                return make_response({'message': 'An error occurred'}, 500)
+        else:
+            # If the user is not logged in, return an unauthorized error
+            return make_response({'error': 'Unauthorized'}, 401)
 
 
 api.add_resource(Signup, '/signup', endpoint='signup')
